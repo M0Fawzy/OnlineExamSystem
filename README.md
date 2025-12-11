@@ -130,13 +130,21 @@ dotnet run
 ## Features Implemented
 
 ✅ Create MCQ, True/False, and Short Answer questions
+
 ✅ Edit and delete questions
+
 ✅ Create exam papers with multiple questions
+
 ✅ Assign scores to individual questions
+
 ✅ Take exams with real-time feedback
+
 ✅ Auto-calculation of exam scores
+
 ✅ Responsive modal-based interface
+
 ✅ Form validation
+
 ✅ Clean and intuitive UI
 
 ## License
