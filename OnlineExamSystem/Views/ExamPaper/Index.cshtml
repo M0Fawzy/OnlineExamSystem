@@ -1,0 +1,239 @@
+﻿@model IEnumerable<Online_Exam_System.Models.ExamPaper>
+@{
+    ViewData["Title"] = "Exam Papers";
+}
+
+<h1>Exam Papers</h1>
+
+<div>
+    <a asp-action="Create" class="btn btn-primary mb-3">Create New Exam Paper</a>
+    <br />
+
+    @foreach (var paper in Model)
+    {
+        <div class="mt-3 p-3 border rounded">
+            <h5>@paper.Title</h5>
+            <p><strong>Total Score:</strong> @paper.TotalScore</p>
+
+            <button type="button" class="btn btn-info btn-sm" onclick="takeExam(@paper.Id)">
+                Take Exam
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeExam(@paper.Id)">
+                Remove
+            </button>
+        </div>
+    }
+</div>
+
+<!-- Exam Modal -->
+<div class="modal fade" id="examModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="examTitle"></h5>
+                <span class="badge bg-primary" id="scoreDisplay">Score: 0/0</span>
+            </div>
+
+            <form id="examForm">
+                <div class="modal-body" id="questionsContainer">
+                    <!-- Questions will be loaded here -->
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitExam()">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Results Modal -->
+<div class="modal fade" id="resultsModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Exam Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <h3 id="finalScore" class="text-success mb-3"></h3>
+                <p id="resultMessage" class="fs-5"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentExamPaperId = null;
+    let examQuestions = [];
+    let scores = {};
+
+    // Remove exam paper
+    function removeExam(paperId) {
+        if (!confirm("Are you sure you want to delete this exam paper?")) {
+            return;
+        }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/ExamPaper/Delete?id=${paperId}`;
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'id';
+        input.value = paperId;
+
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // Load question counts on page load
+    document.addEventListener("DOMContentLoaded", function() {
+        const questionCountElements = document.querySelectorAll(".questionCount");
+        questionCountElements.forEach(element => {
+            const paperId = element.getAttribute("data-paper-id");
+            fetch(`/ExamPaper/GetExamDetails?paperId=${paperId}`)
+                .then(response => response.json())
+                .then(data => {
+                    element.textContent = data.questions.length;
+                })
+                .catch(error => {
+                    console.error("Error loading question count:", error);
+                    element.textContent = "0";
+                });
+        });
+    });
+
+    // Load exam questions and display modal
+    function takeExam(paperId) {
+        currentExamPaperId = paperId;
+        scores = {};
+
+        fetch(`/ExamPaper/GetExamDetails?paperId=${paperId}`)
+            .then(response => response.json())
+            .then(data => {
+                examQuestions = data.questions;
+                document.getElementById("examTitle").textContent = data.title;
+                document.getElementById("scoreDisplay").textContent = `Score: 0/${data.totalScore}`;
+
+                renderQuestions();
+
+                const examModal = new bootstrap.Modal(document.getElementById("examModal"));
+                examModal.show();
+            })
+            .catch(error => {
+                console.error("Error loading exam:", error);
+                alert("Error loading exam");
+            });
+    }
+
+    // Render all questions in the modal
+    function renderQuestions() {
+        const container = document.getElementById("questionsContainer");
+        container.innerHTML = "";
+
+        examQuestions.forEach((item, index) => {
+            const questionDiv = document.createElement("div");
+            questionDiv.className = "mb-4 p-3 border rounded";
+            questionDiv.id = `question-${item.examId}`;
+
+            let htmlContent = `
+                <h6 class="mb-3"><strong>Q${index + 1}: ${item.question}</strong></h6>
+                <small class="text-muted">Score: ${item.score}</small>
+            `;
+
+            if (item.questionType === 0) {
+                // MCQ
+                htmlContent += '<div>';
+                item.options.forEach((option, i) => {
+                    htmlContent += `
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio"
+                                   name="answer_${item.examId}" value="${i}"
+                                   id="option_${item.examId}_${i}">
+                            <label class="form-check-label" for="option_${item.examId}_${i}">
+                                ${option}
+                            </label>
+                        </div>
+                    `;
+                });
+                htmlContent += '</div>';
+            } else if (item.questionType === 1) {
+                // True/False
+                htmlContent += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio"
+                               name="answer_${item.examId}" value="True"
+                               id="tf_${item.examId}_true">
+                        <label class="form-check-label" for="tf_${item.examId}_true">
+                            True
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio"
+                               name="answer_${item.examId}" value="False"
+                               id="tf_${item.examId}_false">
+                        <label class="form-check-label" for="tf_${item.examId}_false">
+                            False
+                        </label>
+                    </div>
+                `;
+            } else if (item.questionType === 2) {
+                // Write Answer
+                htmlContent += `
+                    <input type="text" class="form-control" name="answer_${item.examId}"
+                           placeholder="Write your answer..." />
+                `;
+            }
+
+            questionDiv.innerHTML = htmlContent;
+            container.appendChild(questionDiv);
+        });
+    }
+
+    // Submit exam and calculate score
+    function submitExam() {
+        let totalScore = 0;
+        let correctAnswers = 0;
+
+        examQuestions.forEach(item => {
+            const answeredElement = document.querySelector(`input[name="answer_${item.examId}"]:checked`) ||
+                                   document.querySelector(`input[name="answer_${item.examId}"]`);
+
+            if (answeredElement) {
+                const userAnswer = answeredElement.value;
+
+                // Compare user answer with correct answer
+                if (userAnswer.toString().toLowerCase() === item.correctAnswer.toString().toLowerCase()) {
+                    totalScore += item.score;
+                    correctAnswers++;
+                }
+            }
+        });
+
+        // Show results modal
+        showResults(totalScore, correctAnswers);
+    }
+
+    // Display results in modal
+    function showResults(score, correct) {
+        document.getElementById("finalScore").textContent = `${score} / ${examQuestions.reduce((sum, q) => sum + q.score, 0)} Points`;
+
+        const percentage = Math.round((score / examQuestions.reduce((sum, q) => sum + q.score, 0)) * 100);
+        document.getElementById("resultMessage").innerHTML = `
+            <p><strong>${correct} out of ${examQuestions.length} correct</strong></p>
+            <p>Percentage: <strong>${percentage}%</strong></p>
+        `;
+
+        // Close exam modal and show results modal
+        bootstrap.Modal.getInstance(document.getElementById("examModal")).hide();
+
+        const resultsModal = new bootstrap.Modal(document.getElementById("resultsModal"));
+        resultsModal.show();
+    }
+</script>

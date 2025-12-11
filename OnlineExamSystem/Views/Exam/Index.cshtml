@@ -1,0 +1,342 @@
+﻿@model IEnumerable<Online_Exam_System.Models.Exam>
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Questions</h1>
+
+<div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addExamModal">
+        Add Question
+    </button>
+    <br />
+
+    @foreach (var item in Model)
+    {
+        <div class="mt-3 p-3 border rounded">
+            <h5>@item.Question</h5>
+
+            @switch (item.QuestionType)
+            {
+                case Online_Exam_System.Models.Topic.MCQ:
+                    <div>
+                        @for (int i = 0; i < item.Options.Count; i++)
+                        {
+                            <div>
+                                <input type="radio" name="answer_@item.Id" value="@i" /> @item.Options[i]
+                            </div>
+                        }
+                    </div>
+                    break;
+
+                case Online_Exam_System.Models.Topic.True_False:
+                    <div>
+                        <input type="radio" name="answer_@item.Id" value="True" /> True <br />
+                        <input type="radio" name="answer_@item.Id" value="False" /> False <br />
+                    </div>
+                    break;
+
+                case Online_Exam_System.Models.Topic.WriteAnswer:
+                    <div>
+                        <input type="text" name="answer_@item.Id" class="form-control" placeholder="Write your answer..." />
+                    </div>
+                    break;
+            }
+
+            <div class="mt-2">
+                <button type="button" onclick="editExam(@item.Id)" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editExamModal">Edit</button>
+                <button type="button" onclick="deleteExam(@item.Id)" class="btn btn-danger btn-sm">Delete</button>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Add Exam Modal -->
+<div class="modal fade" id="addExamModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addExamModalLabel">Add Exam</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form asp-action="New" asp-controller="Exam" method="post" onsubmit="fixTrueFalseValue(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Question</label>
+                        <input type="text" name="Question" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Question Type</label>
+                        <select id="typeSelect" class="form-select" name="QuestionType" required>
+                            <option value="">Select Type</option>
+                            <option value="0">MCQ</option>
+                            <option value="1">True/False</option>
+                            <option value="2">Write Question</option>
+                        </select>
+                    </div>
+
+                    <!-- MCQ Options -->
+                    <div id="mcqOptions" style="display:none;">
+                        <label>Options</label>
+                        <input class="form-control mt-1" name="Options[0]" placeholder="Option A" />
+                        <input class="form-control mt-1" name="Options[1]" placeholder="Option B" />
+                        <input class="form-control mt-1" name="Options[2]" placeholder="Option C" />
+                        <input class="form-control mt-1" name="Options[3]" placeholder="Option D" />
+
+                        <label class="mt-2">Correct Answer</label>
+                        <select class="form-select" name="CorrectAnswer">
+                            <option value="0">Option A</option>
+                            <option value="1">Option B</option>
+                            <option value="2">Option C</option>
+                            <option value="3">Option D</option>
+                        </select>
+                    </div>
+
+                    <!-- True/False -->
+                    <div id="trueFalse" style="display:none;">
+                        <label>Correct Answer</label>
+                        <select class="form-select" name="CorrectAnswer">
+                            <option value="">Select Answer</option>
+                            <option value="True">True</option>
+                            <option value="False">False</option>
+                        </select>
+                    </div>
+
+                    <!-- Written answer -->
+                    <div id="writeAnswer" style="display:none;">
+                        <label>Correct Answer</label>
+                        <input class="form-control" name="CorrectAnswer" placeholder="Write correct answer" />
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Save</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Exam Modal -->
+<div class="modal fade" id="editExamModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Exam</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form asp-action="Edit" asp-controller="Exam" method="post" id="editForm" onsubmit="fixTrueFalseValue(event)">
+                <div class="modal-body">
+                    <input type="hidden" name="Id" id="editId" />
+
+                    <div class="mb-3">
+                        <label class="form-label">Question</label>
+                        <input type="text" name="Question" id="editQuestion" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Question Type</label>
+                        <select id="editTypeSelect" class="form-select" name="QuestionType" required>
+                            <option value="">Select Type</option>
+                            <option value="0">MCQ</option>
+                            <option value="1">True/False</option>
+                            <option value="2">Write Question</option>
+                        </select>
+                    </div>
+
+                    <!-- MCQ Options -->
+                    <div id="editMcqOptions" style="display:none;">
+                        <label>Options</label>
+                        <input class="form-control mt-1" id="editOption0" name="Options[0]" placeholder="Option A" />
+                        <input class="form-control mt-1" id="editOption1" name="Options[1]" placeholder="Option B" />
+                        <input class="form-control mt-1" id="editOption2" name="Options[2]" placeholder="Option C" />
+                        <input class="form-control mt-1" id="editOption3" name="Options[3]" placeholder="Option D" />
+
+                        <label class="mt-2">Correct Answer</label>
+                        <select class="form-select" id="editCorrectAnswerMcq" name="CorrectAnswer">
+                            <option value="0">Option A</option>
+                            <option value="1">Option B</option>
+                            <option value="2">Option C</option>
+                            <option value="3">Option D</option>
+                        </select>
+                    </div>
+
+                    <!-- True/False -->
+                    <div id="editTrueFalse" style="display:none;">
+                        <label>Correct Answer</label>
+                        <select class="form-select" id="editCorrectAnswerTf" name="CorrectAnswer">
+                            <option value="">Select Answer</option>
+                            <option value="True">True</option>
+                            <option value="False">False</option>
+                        </select>
+                    </div>
+
+                    <!-- Written answer -->
+                    <div id="editWriteAnswer" style="display:none;">
+                        <label>Correct Answer</label>
+                        <input class="form-control" id="editCorrectAnswerWrite" name="CorrectAnswer" placeholder="Write correct answer" />
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Update</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<form id="deleteForm" method="post">
+    <input type="hidden" name="Id" id="deleteId" />
+    @Html.AntiForgeryToken()
+</form>
+
+<script>
+    // Fix True/False value before submitting
+    function fixTrueFalseValue(event) {
+        const typeSelect = document.getElementById("typeSelect") || document.getElementById("editTypeSelect");
+        const questionType = typeSelect.value;
+
+        if (questionType == "1") {
+            // It's a True/False question
+            const tfSelect = document.querySelector('select[name="CorrectAnswer"]');
+            if (tfSelect) {
+                const selectedValue = tfSelect.value;
+                console.log("Before fix - CorrectAnswer value:", selectedValue);
+                // Ensure it's "True" or "False", not an index
+                if (selectedValue !== "True" && selectedValue !== "False" && selectedValue !== "") {
+                    console.log("Invalid TF value, converting");
+                    if (selectedValue === "0" || selectedValue === 0) {
+                        tfSelect.value = "False";
+                    } else if (selectedValue === "1" || selectedValue === 1) {
+                        tfSelect.value = "True";
+                    }
+                }
+                console.log("After fix - CorrectAnswer value:", tfSelect.value);
+            }
+        }
+    }
+
+    // Add Exam Modal - Toggle question type fields
+    document.getElementById("typeSelect").addEventListener("change", function () {
+        var type = this.value;
+
+        // Show/hide sections
+        document.getElementById("mcqOptions").style.display = (type == "0") ? "block" : "none";
+        document.getElementById("trueFalse").style.display = (type == "1") ? "block" : "none";
+        document.getElementById("writeAnswer").style.display = (type == "2") ? "block" : "none";
+
+        // Disable/enable fields so only visible ones are submitted
+        const mcqSelect = document.querySelector('#mcqOptions select[name="CorrectAnswer"]');
+        const tfSelect = document.querySelector('#trueFalse select[name="CorrectAnswer"]');
+        const writeInput = document.querySelector('#writeAnswer input[name="CorrectAnswer"]');
+
+        if (mcqSelect) mcqSelect.disabled = (type != "0");
+        if (tfSelect) tfSelect.disabled = (type != "1");
+        if (writeInput) writeInput.disabled = (type != "2");
+    });
+
+    // Edit Exam Modal - Toggle question type fields
+    document.getElementById("editTypeSelect").addEventListener("change", function () {
+        var type = this.value;
+
+        // Show/hide sections
+        document.getElementById("editMcqOptions").style.display = (type == "0") ? "block" : "none";
+        document.getElementById("editTrueFalse").style.display = (type == "1") ? "block" : "none";
+        document.getElementById("editWriteAnswer").style.display = (type == "2") ? "block" : "none";
+
+        // Disable/enable fields so only visible ones are submitted
+        const mcqSelect = document.querySelector('#editMcqOptions select[name="CorrectAnswer"]');
+        const tfSelect = document.querySelector('#editTrueFalse select[name="CorrectAnswer"]');
+        const writeInput = document.querySelector('#editWriteAnswer input[name="CorrectAnswer"]');
+
+        if (mcqSelect) mcqSelect.disabled = (type != "0");
+        if (tfSelect) tfSelect.disabled = (type != "1");
+        if (writeInput) writeInput.disabled = (type != "2");
+    });
+
+    // Load exam data via AJAX and populate edit modal
+    function editExam(id) {
+        console.log("Editing exam with ID:", id);
+        fetch(`/Exam/Edit?id=${id}`)
+            .then(response => {
+                console.log("Response status:", response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Full data received:", data);
+                console.log("Question Type:", data.questionType);
+                console.log("Correct Answer:", data.correctAnswer);
+                console.log("Correct Answer Type:", typeof data.correctAnswer);
+
+                document.getElementById("editId").value = data.id;
+                document.getElementById("editQuestion").value = data.question;
+                document.getElementById("editTypeSelect").value = data.questionType;
+
+                // Clear all option inputs
+                for (let i = 0; i < 4; i++) {
+                    document.getElementById(`editOption${i}`).value = "";
+                }
+
+                // Trigger the change event to show the correct fields FIRST
+                document.getElementById("editTypeSelect").dispatchEvent(new Event("change"));
+
+                // Then populate options after fields are visible
+                setTimeout(function() {
+                    if (data.questionType == 0) {
+                        // MCQ
+                        for (let i = 0; i < data.options.length; i++) {
+                            document.getElementById(`editOption${i}`).value = data.options[i];
+                        }
+                        document.getElementById("editCorrectAnswerMcq").value = data.correctAnswer;
+                    } else if (data.questionType == 1) {
+                        // True/False - handle both "True"/"False" strings and "0"/"1" numbers
+                        let tfValue = data.correctAnswer.toString().trim();
+                        console.log("Raw TF value:", tfValue);
+
+                        // Convert 0/1 to True/False if needed
+                        if (tfValue === "0" || tfValue === 0) {
+                            tfValue = "True";
+                        } else if (tfValue === "1" || tfValue === 1) {
+                            tfValue = "False";
+                        }
+
+                        console.log("Final TF value to set:", tfValue);
+                        const tfSelect = document.getElementById("editCorrectAnswerTf");
+
+                        // Check what options are available
+                        console.log("Available options:");
+                        for (let i = 0; i < tfSelect.options.length; i++) {
+                            console.log(`  Option ${i}: value="${tfSelect.options[i].value}" text="${tfSelect.options[i].text}"`);
+                        }
+
+                        tfSelect.value = tfValue;
+                        console.log("Select element value is now:", tfSelect.value);
+                        console.log("Selected option text:", tfSelect.options[tfSelect.selectedIndex].text);
+
+                    } else if (data.questionType == 2) {
+                        // Write Answer
+                        document.getElementById("editCorrectAnswerWrite").value = data.correctAnswer;
+                    }
+                }, 100);
+            })
+            .catch(error => console.error("Error loading exam:", error));
+    }
+
+    // Delete exam with confirmation
+    function deleteExam(id) {
+        if (!confirm("Are you sure?")) return;
+
+        document.getElementById("deleteId").value = id;
+        document.getElementById("deleteForm").action = "/Exam/Delete";
+        document.getElementById("deleteForm").submit();
+    }
+</script>

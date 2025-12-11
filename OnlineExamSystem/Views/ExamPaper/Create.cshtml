@@ -1,0 +1,94 @@
+﻿@model Online_Exam_System.Models.ExamPaper
+@{
+    ViewData["Title"] = "Create Exam Paper";
+}
+
+<h1>Create New Exam Paper</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <form asp-action="Create" asp-controller="ExamPaper" method="post">
+            <div class="mb-3">
+                <label class="form-label">Exam Paper Title</label>
+                <input type="text" name="title" class="form-control" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Select Questions</label>
+                <div id="questionsContainer" class="border p-3" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Questions will be loaded here -->
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <button type="button" class="btn btn-success" onclick="addQuestion()">Add Question</button>
+            </div>
+
+            <div class="mb-3">
+                <a asp-action="Index" class="btn btn-secondary">Back</a>
+                <button type="submit" class="btn btn-primary">Create Exam Paper</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let questionCounter = 0;
+    let allQuestions = [];
+
+    // Load all available questions
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("/ExamPaper/GetAllQuestions")
+            .then(response => response.json())
+            .then(data => {
+                allQuestions = data;
+                console.log("Questions loaded:", allQuestions);
+            })
+            .catch(error => console.error("Error loading questions:", error));
+    });
+
+    // Add a new question row
+    function addQuestion() {
+        const container = document.getElementById("questionsContainer");
+
+        const questionRow = document.createElement("div");
+        questionRow.className = "mb-3 p-3 border rounded";
+        questionRow.id = `question-row-${questionCounter}`;
+
+        let optionsHtml = '<option value="">Select a Question</option>';
+        allQuestions.forEach(q => {
+            optionsHtml += `<option value="${q.id}">${q.question}</option>`;
+        });
+
+        questionRow.innerHTML = `
+            <div class="row">
+                <div class="col-md-8">
+                    <label class="form-label">Question</label>
+                    <select name="questionIds" class="form-select" required>
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Score</label>
+                    <input type="number" name="scores" class="form-control" min="1" value="1" required />
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeQuestion('question-row-${questionCounter}')">
+                        Drop
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(questionRow);
+        questionCounter++;
+    }
+
+    // Remove a question row
+    function removeQuestion(rowId) {
+        const row = document.getElementById(rowId);
+        if (row) {
+            row.remove();
+        }
+    }
+</script>
